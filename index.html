@@ -1,0 +1,200 @@
+<!-- GroceryGOD Frontend - Market Sensors View -->
+<!-- Dev note: UI ta mobile e ektu chap hoye jay, but sidebar toggle diye solve korlam. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GroceryGOD // Price Comparison Engine</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="pitch-black">
+    <div id="loading-spinner" class="spinner-container">
+        <div class="spinner"></div>
+        <span style="color:var(--accent-color)">Synchronizing Market Data...</span>
+    </div>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h3 style="margin:0; color:var(--gold)">Market Sensors</h3>
+                    <button id="run-aggregator-btn" class="btn-icon" title="Refresh Aggregated Data"><i class="fas fa-sync"></i></button>
+                </div>
+            </div>
+            
+            <div class="sidebar-controls">
+                <button id="select-all-cat" class="btn-icon" title="Toggle All"><i class="fas fa-check-double"></i></button>
+                <button id="bookmark-cat-btn" class="btn-icon" title="Show Favorites Only"><i class="fas fa-star"></i></button>
+            </div>
+
+            <div class="category-search-container">
+                <input type="text" id="category-filter" placeholder="Filter categories/stores...">
+            </div>
+
+            <ul id="category-list" class="category-list">
+                <!-- Stores and categories populated by JS -->
+            </ul>
+            
+            <div class="store-legend" id="store-stats-sidebar">
+                <!-- Last update dates for each store -->
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="dashboard-header">
+                <div class="header-left">
+                    <button id="sidebar-toggle" class="sidebar-toggle-btn"><i class="fas fa-bars"></i></button>
+                    <h2 id="current-view-title" style="margin:0; font-size:1.2rem; color:var(--text-primary);">GroceryGOD Unified</h2>
+                    <div class="search-wrapper">
+                        <input type="text" id="product-search" class="search-input" placeholder="Search across all stores (Esc to close)...">
+                        <i id="clear-search" class="fas fa-times-circle clear-search"></i>
+                        <div id="search-suggestions" class="suggestions-box"></div>
+                    </div>
+                </div>
+                
+                <div class="header-right">
+                    <div class="multi-filter-group">
+                        <span class="filter-label">UNIT:</span>
+                        <label class="check-pill"><input type="checkbox" value="kg" checked> KG</label>
+                        <label class="check-pill"><input type="checkbox" value="liter" checked> LTR</label>
+                        <label class="check-pill"><input type="checkbox" value="piece" checked> PCS</label>
+                    </div>
+
+                    <select id="sort-options" class="search-input">
+                        <option value="name_asc">Name A-Z</option>
+                        <option value="unit_price_asc">Unit Price Low-High</option>
+                        <option value="unit_price_desc">Unit Price High-Low</option>
+                        <option value="actual_price_asc">Actual Price Low-High</option>
+                        <option value="drop_desc">Biggest Drop</option>
+                        <option value="rise_desc">Biggest Rise</option>
+                        <option value="savings_desc">Best Saving</option>
+                    </select>
+
+                    <button id="compare-btn" class="btn-icon" title="Compare Selected Matrix"><i class="fas fa-balance-scale"></i> Compare</button>
+                    <button id="cart-comp-btn" class="btn-icon" title="Cart Analysis"><i class="fas fa-shopping-cart"></i> Cart</button>
+                </div>
+            </header>
+
+            <!-- Intelligence Bar -->
+            <div class="intelligence-bar">
+                <button class="intel-btn" data-filter="great" title="Price dropped > 15% from avg">Great Deal (15%+ Drop)</button>
+                <button class="intel-btn" data-filter="good" title="Price dropped > 5% from avg">Good Buy (5%+ Drop)</button>
+                <button class="intel-btn" data-filter="wait" title="Price is above average">Wait</button>
+                <button class="intel-btn" data-filter="low" title="Current price is the lowest recorded">All Time Low</button>
+                <div class="date-range-intel">
+                    <span>Mean Analysis:</span>
+                    <input type="date" id="intel-date-start"> to <input type="date" id="intel-date-end">
+                </div>
+            </div>
+
+            <!-- Stats Bar -->
+            <div class="stats-bar">
+                <div class="stat-item clickable" id="stat-total-btn">
+                    <span class="stat-label">Total Units</span>
+                    <span class="stat-value" id="total-items">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Market Status</span>
+                    <span class="stat-value" style="color:var(--accent-secondary)">STABLE</span>
+                </div>
+                <div class="stat-item clickable" id="stat-good-buys-btn">
+                    <span class="stat-label">Best Values</span>
+                    <span class="stat-value highlight" id="good-buys-count">0</span>
+                </div>
+            </div>
+
+            <div id="main-content-area">
+                <div id="sh-grid" class="p-view-sh">
+                    <!-- Products populated by JS -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Comparison Matrix Modal -->
+    <div id="compare-modal" class="modal">
+        <div class="modal-content full-screen-modal">
+            <div class="modal-header">
+                <h2>Comparison Matrix Analysis</h2>
+                <span class="close-modal" data-modal="compare-modal">&times;</span>
+            </div>
+            <div class="modal-body-content">
+                <div class="compare-controls">
+                    <button id="compare-clear-all" class="btn-icon"><i class="fas fa-trash"></i> Reset Selection</button>
+                    <span id="selected-count" style="color:var(--accent-color); font-weight:800;">0 units staged</span>
+                </div>
+                <div id="compare-chart-container">
+                    <canvas id="compare-chart"></canvas>
+                </div>
+                <div id="compare-details" class="compare-details-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cart Analysis Modal -->
+    <div id="cart-modal" class="modal">
+        <div class="modal-content full-screen-modal">
+            <div class="modal-header">
+                <h2>Cart Total Intel</h2>
+                <div style="display:flex; gap:10px;">
+                    <button id="reset-cart-btn" class="btn-icon danger"><i class="fas fa-undo"></i> Reset Cart</button>
+                    <span class="close-modal" data-modal="cart-modal">&times;</span>
+                </div>
+            </div>
+            <div class="modal-body-content">
+                <div id="cart-content" class="cart-content-area">
+                    <!-- Tab contents -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Chart Modal -->
+    <div id="chart-modal" class="modal">
+        <div class="modal-content full-screen-modal sci-fi-modal">
+            <div class="modal-header">
+                <h2 id="chart-product-name"></h2>
+                <div style="display:flex; gap:15px; align-items:center;">
+                    <span id="chart-store-tag" class="store-tag"></span>
+                    <span id="chart-product-unit" style="color:#888; font-size:0.9rem;"></span>
+                    <span class="close-modal" data-modal="chart-modal">&times;</span>
+                </div>
+            </div>
+            <div class="chart-analytics full-width-analytics">
+                <div class="stat-card">
+                    <div class="stat-label">Actual Price</div>
+                    <div class="stat-value" id="chart-actual"></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Unit Price</div>
+                    <div class="stat-value" id="chart-unit"></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Historical Average</div>
+                    <div class="stat-value" id="chart-avg"></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Market Range</div>
+                    <div class="stat-value" id="chart-min-max"></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Market Store</div>
+                    <div class="stat-value" id="chart-store-name"></div>
+                </div>
+            </div>
+            <div class="chart-container full-height-container">
+                <canvas id="price-history-chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script src="data.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
